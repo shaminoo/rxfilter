@@ -16,7 +16,7 @@ app.controller('myctrl', myController);
 app.service('myService', myService);
 
 class filterQSService {
-    public dependentSvcVar = new Rx.BehaviorSubject(1);
+    public dependentSvcVar = new Rx.Subject();
     constructor(public $q: ng.IQService, public $timeout: ng.ITimeoutService) {
         this.myPromise().then((data) => {
             this.dependentSvcVar.next(data);
@@ -41,26 +41,28 @@ interface Map<T> {
 class realTimeQSService {
     private subjectMap: Array<Map<Rx.Subject<any>>> = [];
     private refreshLoopset = false;
-    constructor(public $interval: ng.IIntervalService, public $timeout: ng.ITimeoutService, filterQSService: filterQSService) {
+    constructor(public $interval: ng.IIntervalService, public $timeout: ng.ITimeoutService, public filterQSService: filterQSService) {
     }
     public addFeed(query: string) {
         let subject = new Rx.Subject();
         let map = {};
         map[query] = subject;
         this.subjectMap.push(map);
-        this.refreshFeed(subject, query);
-        this.setRefreshLoop();
+        this.filterQSService.dependentSvcVar.subscribe((filter) => {
+            this.refreshFeed(subject, query+filter);
+            this.setRefreshLoop(filter);
+        });
         return subject;
     }
 
-    private setRefreshLoop() {
+    private setRefreshLoop(filter) {
         if(!this.refreshLoopset) {
             this.refreshLoopset = true;
             this.$interval(()=> {
                 this.subjectMap.forEach(element => {
                     let query = Object.keys(element)[0];
                     let subject = element[query];
-                    subject.next(2 + query);
+                    subject.next(2 + query+filter);
                 })
             }, 5000);
         }
@@ -82,6 +84,7 @@ class dependentController {
         // });
         let query = "query1";
         let subject = realTimeQSService.addFeed(query);
+        this.dependentCtrlVar = "loading...";
         subject.subscribe((value) => {
             this.dependentCtrlVar = value;
         },
@@ -108,6 +111,7 @@ class dependentController1 {
         // });
         let baseQuery = "query2";
         let sub2 = realTimeQSService.addFeed(baseQuery);
+        this.dependentCtrlVar = "loading...";
         sub2.subscribe((value) => {
             this.dependentCtrlVar = value;
         },
