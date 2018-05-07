@@ -13,10 +13,13 @@
     <div ng-app="myApp">
         <div ng-controller="dependentController as vm">
             {{vm.dependentCtrlVar}}
-        <button ng-click="updateValue()">updateValue</button>
         </div>
         <div ng-controller="dependentController1 as vm1">
             {{vm1.dependentCtrlVar}}
+        </div>
+
+        <div ng-controller="filterController as vm2">
+            <button ng-click="vm2.apply('filter2')">applyFilter</button>
         </div>
     </div>
     TEST
