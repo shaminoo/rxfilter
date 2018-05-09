@@ -19,7 +19,7 @@
   "devDependencies": {
     "@types/angular": "1.6.21",
     "http-server": "^0.11.1",
-    "typescript": "2.3.4",
+    "typescript": "^2.8.3",
     "@types/reactivex-rxjs": "git://github.com/ganeshyb/reactivex-rxjs-global.git#28de0c2"
   },
   "dependencies": {

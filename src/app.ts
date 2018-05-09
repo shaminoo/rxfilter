@@ -17,10 +17,14 @@ app.service('myService', myService);
 
 class filterQSService {
     public dependentSvcVar = new Rx.Subject();
+    private subscription;
     constructor(public $q: ng.IQService, public $timeout: ng.ITimeoutService) {
         this.myPromise().then((data) => {
-            this.dependentSvcVar.next(data);
-        })
+            this.subscription = Rx.Observable.timer(0, 10000).switchMap(() => { return Rx.Observable.of(data) })
+            .subscribe((value) => {
+                this.dependentSvcVar.next(value);
+            })
+        });
     }
     
     public myPromise(): ng.IPromise<any> {
@@ -29,6 +33,15 @@ class filterQSService {
             promise.resolve("filter");
         }, 2000);
         return promise.promise;
+    }
+
+    public updateFeed(filter) {
+        if(this.subscription)
+            this.subscription.unsubscribe();
+        this.subscription = Rx.Observable.timer(0, 10000).switchMap(() => { return Rx.Observable.of(filter) })
+        .subscribe((value) => {
+            this.dependentSvcVar.next(value);
+        })
     }
 }
 
@@ -41,17 +54,42 @@ interface Map<T> {
 class realTimeQSService {
     private subjectMap: Array<Map<Rx.Subject<any>>> = [];
     private refreshLoopset = false;
-    constructor(public $interval: ng.IIntervalService, public $timeout: ng.ITimeoutService, public filterQSService: filterQSService) {
+    constructor(public $interval: ng.IIntervalService, public $timeout: ng.ITimeoutService, public filterQSService: filterQSService, public $q: ng.IQService) {
     }
     public addFeed(query: string) {
         let subject = new Rx.Subject();
         let map = {};
         map[query] = subject;
         this.subjectMap.push(map);
-        this.filterQSService.dependentSvcVar.subscribe((filter) => {
-            this.refreshFeed(subject, query+filter);
-            this.setRefreshLoop(filter);
+
+        Rx.Observable.from(this.filterQSService.dependentSvcVar).switchMap((filter) => {
+            return this.$timeout(() => {
+                return Rx.Observable.of(filter + query);
+            }, 2000)
+        }).subscribe((val) => {
+            subject.next(val);
         });
+        // if(!this.refreshLoopset) {
+        //     this.refreshLoopset = true;
+
+        //     Rx.Observable.from(this.filterQSService.dependentSvcVar).switchMap((filter) => {
+        //         this.subjectMap.forEach(element=>{
+        //             let query = Object.keys(element)[0];
+        //             let subject = element[query];
+        //             this.refreshFeed(subject, query+filter);
+        //         })
+        //         return Rx.Observable.of(filter);
+        //     }).subscribe((value) => 
+        //     {
+        //         console.log(value);
+        //     }, (err) => 
+        //     {
+        //         console.log(err);
+        //     }, () => 
+        //     {
+        //         console.log('complete');
+        //     });
+        // }
         return subject;
     }
 
@@ -68,25 +106,38 @@ class realTimeQSService {
         }
     }
 
-    private refreshFeed(subject: Rx.Subject<any>, query) {
+    private refreshFeed(subject: Rx.subject<any>, query) {
+        //make http call (async)
         this.$timeout(() => {
-            subject.next(1 + query);
+            subject.next(query);
         }, 2000);
     }
 }
 app.service("realTimeQSService", realTimeQSService);
 
+class mainCtrl {
+    public showSecond = false;
+
+    public showSecondFn() {
+        this.showSecond = true;
+    }
+
+    public removeSecondFn() {
+        this.showSecond = false;
+    }
+}
+
+app.controller("mainCtrl", mainCtrl);
+
 class dependentController {
     public dependentCtrlVar;
-    constructor(filterQSService: filterQSService, $timeout: ng.ITimeoutService, realTimeQSService: realTimeQSService) {
-        // filterQSService.dependentSvcVar.subscribe((value) => {
-        //     this.dependentCtrlVar = value;
-        // });
+    constructor(realTimeQSService: realTimeQSService) {
         let query = "query1";
         let subject = realTimeQSService.addFeed(query);
         this.dependentCtrlVar = "loading...";
         subject.subscribe((value) => {
-            this.dependentCtrlVar = value;
+            console.log('sub1');
+            this.dependentCtrlVar = value.value;
         },
         (error) => { 
             console.log(error)
@@ -94,10 +145,6 @@ class dependentController {
         () => {
             console.log('completed');
         });
-    }
-
-    updateValue() {
-        this.dependentCtrlVar = 2;
     }
 }
 
@@ -105,15 +152,13 @@ app.controller('dependentController', dependentController);
 
 class dependentController1 {
     public dependentCtrlVar;
-    constructor(filterQSService: filterQSService, $timeout: ng.ITimeoutService, realTimeQSService: realTimeQSService) {
-        // filterQSService.dependentSvcVar.subscribe((value) => {
-        //     this.dependentCtrlVar = value;
-        // });
+    constructor(realTimeQSService: realTimeQSService, public $scope: ng.IScope) {
         let baseQuery = "query2";
         let sub2 = realTimeQSService.addFeed(baseQuery);
         this.dependentCtrlVar = "loading...";
-        sub2.subscribe((value) => {
-            this.dependentCtrlVar = value;
+        let sub = sub2.subscribe((value) => {
+            console.log('sub2');
+            this.dependentCtrlVar = value.value;
         },
         (error) => { 
             console.log(error)
@@ -121,7 +166,23 @@ class dependentController1 {
         () => {
             console.log('completed');
         });
+
+        $scope.$on("$destroy", () => {
+            sub.unsubscribe();
+        })
+    }
+    
+}
+app.controller('dependentController1', dependentController1);
+
+class filterController {
+    constructor(public filterQSService: filterQSService) {
+    }
+
+    public apply(filter) {
+        this.filterQSService.updateFeed(filter);
     }
 }
 
-app.controller('dependentController1', dependentController1);
+app.controller('filterController', filterController);
+

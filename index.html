@@ -10,12 +10,16 @@
     <script type="text/javascript" src="src/app.js"></script>
 </head>
 <body>
-    <div ng-app="myApp">
+    <div ng-app="myApp" ng-controller="mainCtrl as vmmain">
+        <button ng-click="vmmain.showSecondFn()">showSecond</button>
+        <button ng-click="vmmain.removeSecondFn()">removeSecond</button>
         <div ng-controller="dependentController as vm">
             {{vm.dependentCtrlVar}}
         </div>
-        <div ng-controller="dependentController1 as vm1">
-            {{vm1.dependentCtrlVar}}
+        <div ng-if="vmmain.showSecond">
+            <div ng-controller="dependentController1 as vm1">
+                {{vm1.dependentCtrlVar}}
+            </div>
         </div>
 
         <div ng-controller="filterController as vm2">
