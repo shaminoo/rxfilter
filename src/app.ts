@@ -38,7 +38,9 @@ class filterQSService {
     public updateFeed(filter) {
         if(this.subscription)
             this.subscription.unsubscribe();
-        this.subscription = Rx.Observable.timer(0, 10000).switchMap(() => { return Rx.Observable.of(filter) })
+        this.subscription = Rx.Observable.timer(0, 10000).switchMap(() => { 
+            return Rx.Observable.of(filter) 
+        })
         .subscribe((value) => {
             this.dependentSvcVar.next(value);
         })
@@ -58,14 +60,16 @@ class realTimeQSService {
     }
     public addFeed(query: string) {
         let subject = new Rx.Subject();
-        let map = {};
-        map[query] = subject;
-        this.subjectMap.push(map);
+        // let map = {};
+        // map[query] = subject;
+        // this.subjectMap.push(map);
 
         Rx.Observable.from(this.filterQSService.dependentSvcVar).switchMap((filter) => {
-            return this.$timeout(() => {
-                return Rx.Observable.of(filter + query);
-            }, 2000)
+            return this.getDataPromise(filter, query).then((data) => {
+                return data;
+            }).catch((error) => {
+                return Rx.Observable.of(1);
+            })
         }).subscribe((val) => {
             subject.next(val);
         });
@@ -112,6 +116,21 @@ class realTimeQSService {
             subject.next(query);
         }, 2000);
     }
+
+    private getData(filter, query) {
+        return this.$timeout(() => {
+            return Rx.Observable.of(filter + query);
+        }, 5000)
+    }
+
+    private getDataPromise(filter, query): ng.IPromise<any> {
+        let promise = this.$q.defer();
+        this.$timeout(() => {
+            promise.resolve(filter + query);
+            //promise.reject('error');
+        }, 2000);
+        return promise.promise;
+    }
 }
 app.service("realTimeQSService", realTimeQSService);
 
@@ -136,8 +155,8 @@ class dependentController {
         let subject = realTimeQSService.addFeed(query);
         this.dependentCtrlVar = "loading...";
         subject.subscribe((value) => {
-            console.log('sub1');
-            this.dependentCtrlVar = value.value;
+            console.log('sub1'+value);
+            this.dependentCtrlVar = value;
         },
         (error) => { 
             console.log(error)
@@ -157,8 +176,8 @@ class dependentController1 {
         let sub2 = realTimeQSService.addFeed(baseQuery);
         this.dependentCtrlVar = "loading...";
         let sub = sub2.subscribe((value) => {
-            console.log('sub2');
-            this.dependentCtrlVar = value.value;
+            console.log('sub2'+value);
+            this.dependentCtrlVar = value;
         },
         (error) => { 
             console.log(error)
