@@ -17,12 +17,18 @@ app.service('myService', myService);
 
 class filterQSService {
     public dependentSvcVar = new Rx.Subject();
+    public isPlay = true;
     private subscription;
+    
     constructor(public $q: ng.IQService, public $timeout: ng.ITimeoutService) {
         this.myPromise().then((data) => {
-            this.subscription = Rx.Observable.timer(0, 10000).switchMap(() => { return Rx.Observable.of(data) })
+            this.subscription = Rx.Observable.timer(0, 10000)
+            .switchMap(() => {             
+                return Rx.Observable.of(data) 
+            })
             .subscribe((value) => {
-                this.dependentSvcVar.next(value);
+                if(this.isPlay)
+                    this.dependentSvcVar.next(value);
             })
         });
     }
@@ -42,9 +48,12 @@ class filterQSService {
             return Rx.Observable.of(filter) 
         })
         .subscribe((value) => {
-            this.dependentSvcVar.next(value);
+            if(this.isPlay)
+                this.dependentSvcVar.next(value);
         })
     }
+
+    
 }
 
 app.service('filterQSService', filterQSService);
@@ -196,10 +205,15 @@ app.controller('dependentController1', dependentController1);
 
 class filterController {
     constructor(public filterQSService: filterQSService) {
+        
     }
 
     public apply(filter) {
         this.filterQSService.updateFeed(filter);
+    }
+
+    public playPause() {
+        this.filterQSService.isPlay = !this.filterQSService.isPlay;
     }
 }
 

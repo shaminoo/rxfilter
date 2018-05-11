@@ -13,6 +13,7 @@
     <div ng-app="myApp" ng-controller="mainCtrl as vmmain">
         <button ng-click="vmmain.showSecondFn()">showSecond</button>
         <button ng-click="vmmain.removeSecondFn()">removeSecond</button>
+        
         <div ng-controller="dependentController as vm">
             {{vm.dependentCtrlVar}}
         </div>
@@ -25,6 +26,7 @@
         <div ng-controller="filterController as vm2">
             <button ng-click="vm2.apply('filter2')">applyFilter2</button>
             <button ng-click="vm2.apply('filter3')">applyFilter3</button>
+            <button ng-click="vm2.playPause()">play/pause</button>
         </div>
     </div>
     TEST
