@@ -67,69 +67,20 @@ class realTimeQSService {
     private refreshLoopset = false;
     constructor(public $interval: ng.IIntervalService, public $timeout: ng.ITimeoutService, public filterQSService: filterQSService, public $q: ng.IQService) {
     }
-    public addFeed(query: string) {
+    public addFeed(query: string): Rx.Subject<any> {
         let subject = new Rx.Subject();
-        // let map = {};
-        // map[query] = subject;
-        // this.subjectMap.push(map);
 
         Rx.Observable.from(this.filterQSService.dependentSvcVar).switchMap((filter) => {
             return this.getDataPromise(filter, query).then((data) => {
+                console.log(data);
                 return data;
             }).catch((error) => {
-                return Rx.Observable.of(1);
+                return Rx.Observable.of({"error": error});
             })
         }).subscribe((val) => {
             subject.next(val);
         });
-        // if(!this.refreshLoopset) {
-        //     this.refreshLoopset = true;
-
-        //     Rx.Observable.from(this.filterQSService.dependentSvcVar).switchMap((filter) => {
-        //         this.subjectMap.forEach(element=>{
-        //             let query = Object.keys(element)[0];
-        //             let subject = element[query];
-        //             this.refreshFeed(subject, query+filter);
-        //         })
-        //         return Rx.Observable.of(filter);
-        //     }).subscribe((value) => 
-        //     {
-        //         console.log(value);
-        //     }, (err) => 
-        //     {
-        //         console.log(err);
-        //     }, () => 
-        //     {
-        //         console.log('complete');
-        //     });
-        // }
         return subject;
-    }
-
-    private setRefreshLoop(filter) {
-        if(!this.refreshLoopset) {
-            this.refreshLoopset = true;
-            this.$interval(()=> {
-                this.subjectMap.forEach(element => {
-                    let query = Object.keys(element)[0];
-                    let subject = element[query];
-                    subject.next(2 + query+filter);
-                })
-            }, 5000);
-        }
-    }
-
-    private refreshFeed(subject: Rx.subject<any>, query) {
-        //make http call (async)
-        this.$timeout(() => {
-            subject.next(query);
-        }, 2000);
-    }
-
-    private getData(filter, query) {
-        return this.$timeout(() => {
-            return Rx.Observable.of(filter + query);
-        }, 5000)
     }
 
     private getDataPromise(filter, query): ng.IPromise<any> {
@@ -165,7 +116,9 @@ class dependentController {
         this.dependentCtrlVar = "loading...";
         subject.subscribe((value) => {
             console.log('sub1'+value);
-            this.dependentCtrlVar = value;
+            if(!value.error) {
+                this.dependentCtrlVar = value;
+            }
         },
         (error) => { 
             console.log(error)
