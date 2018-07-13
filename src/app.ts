@@ -24,19 +24,22 @@ class filterQSService {
         this.myPromise().then((data) => {
             this.subscription = Rx.Observable.timer(0, 10000)
             .switchMap(() => {             
-                return Rx.Observable.of(data) 
+                return Rx.Observable.of(data);
             })
             .subscribe((value) => {
                 if(this.isPlay)
                     this.dependentSvcVar.next(value);
             })
+        }).catch((error) => {
+            this.dependentSvcVar.next({"error": error});
         });
     }
     
     public myPromise(): ng.IPromise<any> {
         let promise = this.$q.defer();
         this.$timeout(() => {
-            promise.resolve("filter");
+             promise.resolve("filter");
+            //promise.reject('error');
         }, 2000);
         return promise.promise;
     }
@@ -65,22 +68,24 @@ interface Map<T> {
 class realTimeQSService {
     private subjectMap: Array<Map<Rx.Subject<any>>> = [];
     private refreshLoopset = false;
+    private filterObs: Rx.Observable<any>;
     constructor(public $interval: ng.IIntervalService, public $timeout: ng.ITimeoutService, public filterQSService: filterQSService, public $q: ng.IQService) {
+        this.filterObs = Rx.Observable.from(this.filterQSService.dependentSvcVar);
     }
-    public addFeed(query: string): Rx.Subject<any> {
+    public addFeed(query: string): Rx.Observable<any> {
         let subject = new Rx.Subject();
-
-        Rx.Observable.from(this.filterQSService.dependentSvcVar).switchMap((filter) => {
+        
+        return this.filterObs.switchMap((filter) => {
+            if (filter.error) {
+                return Rx.Observable.of({error: filter.error});
+            }
             return this.getDataPromise(filter, query).then((data) => {
                 console.log(data);
                 return data;
             }).catch((error) => {
                 return Rx.Observable.of({"error": error});
             })
-        }).subscribe((val) => {
-            subject.next(val);
         });
-        return subject;
     }
 
     private getDataPromise(filter, query): ng.IPromise<any> {
